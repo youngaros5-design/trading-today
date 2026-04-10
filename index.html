@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>매매일지</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #f7f6f3;
+    --surface: #ffffff;
+    --surface2: #f2f1ee;
+    --border: rgba(0,0,0,0.10);
+    --border2: rgba(0,0,0,0.18);
+    --text: #1a1a18;
+    --text2: #6b6b67;
+    --text3: #9e9e99;
+    --accent: #1a1a18;
+    --accent-fg: #ffffff;
+    --buy-bg: #e8f3e0; --buy-fg: #2e6b12;
+    --sell-bg: #fceaea; --sell-fg: #a02c2c;
+    --radius: 10px; --radius-lg: 14px;
+    --shadow: 0 1px 4px rgba(0,0,0,0.07);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #18181a; --surface: #232326; --surface2: #2c2c30;
+      --border: rgba(255,255,255,0.09); --border2: rgba(255,255,255,0.16);
+      --text: #f0ede8; --text2: #9a9992; --text3: #6a6a64;
+      --accent: #f0ede8; --accent-fg: #18181a;
+      --buy-bg: #1a2e12; --buy-fg: #7ecb50;
+      --sell-bg: #2e1414; --sell-fg: #f07070;
+    }
+  }
+
+  body {
+    font-family: -apple-system, 'Apple SD Gothic Neo', BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding-bottom: 3rem;
+  }
+
+  .topbar {
+    position: sticky; top: 0; z-index: 50;
+    background: var(--bg);
+    border-bottom: 0.5px solid var(--border);
+    padding: 0 1.25rem;
+    display: flex; align-items: center; justify-content: space-between;
+    height: 52px;
+  }
+  .topbar-title { font-size: 17px; font-weight: 600; letter-spacing: -0.02em; color: var(--text); }
+  .topbar-sub { font-size: 12px; color: var(--text3); margin-top: 1px; }
+
+  .tabs {
+    display: flex; gap: 4px;
+    background: var(--surface2);
+    border-radius: 10px;
+    padding: 3px;
+  }
+  .tab {
+    padding: 6px 14px; font-size: 13px; font-weight: 500;
+    border: none; background: transparent; color: var(--text2);
+    border-radius: 8px; cursor: pointer; transition: all .15s;
+  }
+  .tab.active {
+    background: var(--surface); color: var(--text);
+    box-shadow: var(--shadow);
+  }
+
+  .main { max-width: 560px; margin: 0 auto; padding: 1.25rem; }
+
+  .card {
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1.1rem 1.25rem;
+    margin-bottom: .875rem;
+    box-shadow: var(--shadow);
+  }
+  .card-label {
+    font-size: 11px; font-weight: 600; letter-spacing: .07em;
+    color: var(--text3); text-transform: uppercase; margin-bottom: 10px;
+  }
+
+  /* 음성 */
+  .voice-btn {
+    width: 100%; padding: 1.1rem;
+    border: 1.5px dashed var(--border2);
+    border-radius: var(--radius);
+    background: transparent; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    transition: all .15s; color: var(--text2); font-size: 14px;
+  }
+  .voice-btn:hover { border-color: var(--text3); background: var(--surface2); }
+  .voice-btn.rec { border-color: #c0392b; border-style: solid; background: var(--sell-bg); color: var(--sell-fg); }
+  .mic-wrap {
+    width: 44px; height: 44px; border-radius: 50%;
+    background: var(--surface2);
+    display: flex; align-items: center; justify-content: center; font-size: 20px;
+  }
+  .voice-btn.rec .mic-wrap { background: var(--sell-bg); animation: pulse 1s infinite; }
+  @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.12)} }
+
+  .transcript {
+    margin-top: 10px; display: none;
+    background: var(--surface2);
+    border-radius: var(--radius);
+    padding: .875rem; font-size: 14px;
+    line-height: 1.75; color: var(--text);
+    min-height: 52px;
+  }
+
+  /* 업로드 */
+  .upload-btn {
+    display: flex; align-items: center; gap: 10px;
+    border: 1.5px dashed var(--border2);
+    border-radius: var(--radius); padding: .9rem 1rem;
+    cursor: pointer; transition: all .15s; color: var(--text2); font-size: 14px;
+  }
+  .upload-btn:hover { border-color: var(--text3); background: var(--surface2); }
+  .upload-icon {
+    width: 36px; height: 36px; border-radius: 8px;
+    background: var(--surface2);
+    display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0;
+  }
+  input[type=file] { display: none; }
+  .thumbs { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  .thumb { width: 80px; height: 60px; object-fit: cover; border-radius: 8px; border: 0.5px solid var(--border); }
+
+  /* 버튼 */
+  .primary-btn {
+    width: 100%; padding: 14px;
+    background: var(--accent); color: var(--accent-fg);
+    border: none; border-radius: var(--radius);
+    font-size: 15px; font-weight: 600;
+    cursor: pointer; transition: opacity .15s; letter-spacing: -0.01em;
+  }
+  .primary-btn:hover { opacity: .85; }
+  .primary-btn:disabled { opacity: .3; cursor: not-allowed; }
+
+  /* 결과 */
+  .result-wrap { margin-top: 1rem; }
+  .result-card {
+    background: var(--surface); border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg); padding: 1.25rem;
+    margin-bottom: .875rem; box-shadow: var(--shadow);
+  }
+  .sec-block { margin-bottom: 1.25rem; }
+  .sec-block:last-child { margin-bottom: 0; }
+  .sec-title {
+    font-size: 11px; font-weight: 600; letter-spacing: .06em;
+    color: var(--text3); text-transform: uppercase;
+    padding-bottom: .4rem; border-bottom: 0.5px solid var(--border);
+    margin-bottom: .6rem;
+  }
+  .sec-body {
+    font-size: 14px; line-height: 1.8; color: var(--text);
+    white-space: pre-wrap;
+  }
+  .sec-body[contenteditable=true] {
+    outline: none; background: var(--surface2);
+    border-radius: 8px; padding: .75rem; min-height: 48px;
+  }
+
+  .action-row { display: flex; gap: 8px; margin-top: .75rem; }
+  .sec-btn {
+    flex: 1; padding: 11px;
+    border: 0.5px solid var(--border2); border-radius: var(--radius);
+    background: transparent; font-size: 14px; font-weight: 500;
+    cursor: pointer; color: var(--text); transition: background .15s;
+  }
+  .sec-btn:hover { background: var(--surface2); }
+  .sec-btn.primary {
+    flex: 2; background: var(--accent); color: var(--accent-fg); border-color: transparent;
+  }
+  .sec-btn.primary:hover { opacity: .85; background: var(--accent); }
+
+  /* 로딩 */
+  .loading-state { text-align: center; padding: 2.5rem 1rem; color: var(--text2); font-size: 14px; }
+  .spinner {
+    display: inline-block; width: 18px; height: 18px;
+    border: 2px solid var(--border2); border-top-color: var(--text2);
+    border-radius: 50%; animation: spin .7s linear infinite; vertical-align: middle;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* 목록 */
+  .journal-empty { text-align: center; padding: 3rem 1rem; color: var(--text3); font-size: 14px; line-height: 1.9; }
+  .j-item {
+    background: var(--surface); border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg); padding: 1rem 1.25rem;
+    margin-bottom: .75rem; cursor: pointer;
+    box-shadow: var(--shadow); transition: box-shadow .15s;
+  }
+  .j-item:hover { box-shadow: 0 3px 12px rgba(0,0,0,0.10); }
+  .j-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+  .j-date { font-size: 13px; font-weight: 600; color: var(--text); }
+  .j-del { font-size: 12px; color: var(--text3); background: none; border: none; cursor: pointer; padding: 3px 7px; border-radius: 6px; }
+  .j-del:hover { color: var(--sell-fg); background: var(--sell-bg); }
+  .j-preview { font-size: 13px; color: var(--text2); line-height: 1.6; }
+
+  /* 모달 */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.5);
+    display: none; align-items: center; justify-content: center;
+    z-index: 200; padding: 1rem;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--surface);
+    border-radius: var(--radius-lg);
+    border: 0.5px solid var(--border);
+    padding: 1.25rem;
+    width: 100%; max-width: 520px;
+    max-height: 88vh; overflow-y: auto;
+    box-shadow: 0 8px 32px rgba(0,0,0,.18);
+  }
+  .modal-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.1rem; }
+  .modal-date { font-size: 16px; font-weight: 600; color: var(--text); }
+  .modal-close { background: none; border: none; font-size: 20px; cursor: pointer; color: var(--text2); line-height: 1; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div>
+    <div class="topbar-title">매매일지</div>
+    <div class="topbar-sub" id="todayLabel"></div>
+  </div>
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('write', this)">오늘 기록</button>
+    <button class="tab" onclick="showTab('list', this)">일지 목록</button>
+  </div>
+</div>
+
+<div class="main">
+  <!-- 기록 탭 -->
+  <div id="write">
+    <div class="card">
+      <div class="card-label">음성 메모</div>
+      <div class="voice-btn" id="voiceBtn" onclick="toggleVoice()">
+        <div class="mic-wrap" id="micIcon">🎙</div>
+        <span id="voiceLabel">탭해서 말하기</span>
+      </div>
+      <div class="transcript" id="transcriptBox"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-label">스크린샷 (나무MTS 체결내역)</div>
+      <label class="upload-btn" for="imgInput">
+        <div class="upload-icon">📸</div>
+        <span id="uploadLabel">체결내역 화면 올리기 (여러 장 가능)</span>
+      </label>
+      <input type="file" id="imgInput" accept="image/*" multiple onchange="handleImages(event)">
+      <div class="thumbs" id="thumbRow"></div>
+    </div>
+
+    <button class="primary-btn" id="analyzeBtn" onclick="analyze()" disabled>AI로 일지 정리하기</button>
+
+    <div id="resultArea" style="display:none; margin-top:1rem;">
+      <div id="resultContent"></div>
+      <div class="action-row">
+        <button class="sec-btn" id="editToggleBtn" onclick="toggleEdit()">수정하기</button>
+        <button class="sec-btn primary" onclick="saveEntry()">저장하기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 목록 탭 -->
+  <div id="list" style="display:none;">
+    <div id="journalList"></div>
+  </div>
+</div>
+
+<!-- 모달 -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModalOutside(event)">
+  <div class="modal">
+    <div class="modal-top">
+      <span class="modal-date" id="modalDate"></span>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div id="modalBody"></div>
+    <div class="action-row" style="margin-top:1rem;">
+      <button class="sec-btn" id="modalEditBtn" onclick="toggleModalEdit()">수정하기</button>
+      <button class="sec-btn primary" onclick="saveModalEdit()">저장하기</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = "https://api.anthropic.com/v1/messages";
+const SECTIONS = ['매매 내역', '매매 근거', '심리 및 컨디션', '오늘의 메모'];
+const SEC_LABELS = { '매매 내역': '📋 매매 내역', '매매 근거': '🎯 매매 근거', '심리 및 컨디션': '🧘 심리 및 컨디션', '오늘의 메모': '📝 오늘의 메모' };
+
+let isRec = false, recog = null;
+let transcript = '', images = [], isEditing = false;
+let currentEntry = null, editingIdx = -1;
+let journal = [];
+
+try { journal = JSON.parse(localStorage.getItem('mj_journal') || '[]'); } catch(e) {}
+
+// 날짜
+const now = new Date();
+document.getElementById('todayLabel').textContent = now.toLocaleDateString('ko-KR', { year:'numeric', month:'long', day:'numeric', weekday:'short' });
+
+function showTab(tab, btn) {
+  document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('write').style.display = tab === 'write' ? 'block' : 'none';
+  document.getElementById('list').style.display = tab === 'list' ? 'block' : 'none';
+  if (tab === 'list') renderList();
+}
+
+function checkReady() {
+  document.getElementById('analyzeBtn').disabled = !(transcript || images.length);
+}
+
+// 음성
+function toggleVoice() {
+  if (!isRec) startRec(); else stopRec();
+}
+function startRec() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { alert('크롬 브라우저를 사용해주세요.'); return; }
+  recog = new SR();
+  recog.lang = 'ko-KR';
+  recog.continuous = true;
+  recog.interimResults = true;
+  recog.onresult = e => {
+    let fin = '', int = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      if (e.results[i].isFinal) fin += e.results[i][0].transcript;
+      else int += e.results[i][0].transcript;
+    }
+    if (fin) transcript += fin;
+    const box = document.getElementById('transcriptBox');
+    box.style.display = 'block';
+    box.textContent = transcript + int;
+    checkReady();
+  };
+  recog.onerror = () => stopRec();
+  recog.start();
+  isRec = true;
+  document.getElementById('voiceBtn').classList.add('rec');
+  document.getElementById('voiceLabel').textContent = '듣는 중... 탭하면 완료';
+  document.getElementById('micIcon').textContent = '🔴';
+}
+function stopRec() {
+  if (recog) recog.stop();
+  isRec = false;
+  document.getElementById('voiceBtn').classList.remove('rec');
+  document.getElementById('voiceLabel').textContent = transcript ? '다시 탭하면 추가 녹음' : '탭해서 말하기';
+  document.getElementById('micIcon').textContent = '🎙';
+}
+
+// 이미지
+function handleImages(e) {
+  Array.from(e.target.files).forEach(file => {
+    const reader = new FileReader();
+    reader.onload = ev => {
+      images.push({ b64: ev.target.result.split(',')[1], type: file.type || 'image/jpeg' });
+      const img = document.createElement('img');
+      img.src = ev.target.result;
+      img.className = 'thumb';
+      document.getElementById('thumbRow').appendChild(img);
+      checkReady();
+    };
+    reader.readAsDataURL(file);
+  });
+  document.getElementById('uploadLabel').textContent = `${e.target.files.length}장 선택됨`;
+}
+
+// AI 분석
+async function analyze() {
+  document.getElementById('analyzeBtn').disabled = true;
+  document.getElementById('resultArea').style.display = 'block';
+  document.getElementById('resultContent').innerHTML = '<div class="loading-state"><div class="spinner"></div><br><br>AI가 일지를 정리하는 중...</div>';
+
+  const imgBlocks = images.map(im => ({ type: 'image', source: { type: 'base64', media_type: im.type, data: im.b64 } }));
+  const prompt = `당신은 주식 매매일지 정리 전문가입니다.
+
+아래 음성 메모(텍스트 변환)와 나무MTS 스크린샷을 바탕으로 오늘의 매매일지를 정리하세요.
+
+음성 메모: ${transcript || '없음'}
+
+반드시 아래 4개 섹션으로 구분해서 작성하세요. 각 섹션은 [섹션명] 형식으로 시작하세요.
+
+[매매 내역]
+스크린샷에서 추출한 종목명, 매수/매도 구분, 가격, 수량. 스크린샷이 없으면 음성에서 언급된 내용 기재.
+
+[매매 근거]
+왜 이 종목을 이 시점에 매수/매도했는지. 원칙, 차트 판단, 시황 등.
+
+[심리 및 컨디션]
+오늘 시장을 대하는 심리 상태, 불안감/확신감, 특이한 감정이나 상황.
+
+[오늘의 메모]
+추가로 기억해둘 사항, 내일 볼 종목, 반성, 다짐 등.
+
+모든 섹션을 빠짐없이 채우세요. 정보가 부족한 섹션은 음성 내용을 바탕으로 합리적으로 추론해서 채우세요.`;
+
+  try {
+    const res = await fetch(API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 1500, messages: [{ role: 'user', content: [...imgBlocks, { type: 'text', text: prompt }] }] })
+    });
+    const data = await res.json();
+    const text = data.content?.map(c => c.text || '').join('') || '';
+    currentEntry = parseEntry(text);
+    renderEntry(currentEntry, 'resultContent', false);
+    document.getElementById('analyzeBtn').disabled = false;
+    isEditing = false;
+    document.getElementById('editToggleBtn').textContent = '수정하기';
+  } catch(e) {
+    document.getElementById('resultContent').innerHTML = '<div class="loading-state">오류가 발생했어요. 다시 시도해주세요.</div>';
+    document.getElementById('analyzeBtn').disabled = false;
+  }
+}
+
+function parseEntry(text) {
+  const result = {};
+  SECTIONS.forEach((sec, i) => {
+    const start = text.indexOf('[' + sec + ']');
+    const next = SECTIONS.slice(i+1).map(s => text.indexOf('[' + s + ']')).find(p => p > start) ?? text.length;
+    result[sec] = start !== -1 ? text.slice(start + sec.length + 2, next).trim() : '';
+  });
+  return result;
+}
+
+function renderEntry(entry, containerId, editable) {
+  let html = '<div class="result-card">';
+  SECTIONS.forEach(sec => {
+    const id = containerId + '_' + sec.replace(/ /g, '_');
+    html += `<div class="sec-block">
+      <div class="sec-title">${SEC_LABELS[sec]}</div>
+      <div class="sec-body" id="${id}" ${editable ? 'contenteditable="true"' : ''}>${(entry[sec]||'').replace(/\n/g,'<br>')}</div>
+    </div>`;
+  });
+  html += '</div>';
+  document.getElementById(containerId).innerHTML = html;
+}
+
+function getEntry(prefix) {
+  const result = {};
+  SECTIONS.forEach(sec => {
+    const el = document.getElementById(prefix + '_' + sec.replace(/ /g, '_'));
+    result[sec] = el ? el.innerText : '';
+  });
+  return result;
+}
+
+function toggleEdit() {
+  isEditing = !isEditing;
+  renderEntry(getEntry('resultContent'), 'resultContent', isEditing);
+  document.getElementById('editToggleBtn').textContent = isEditing ? '완료' : '수정하기';
+}
+
+function saveEntry() {
+  const entry = getEntry('resultContent');
+  const dateStr = now.toLocaleDateString('ko-KR', { year:'numeric', month:'2-digit', day:'2-digit', weekday:'short' });
+  journal.unshift({ date: dateStr, ts: Date.now(), entry });
+  try { localStorage.setItem('mj_journal', JSON.stringify(journal)); } catch(e) {}
+  resetWrite();
+  showTab('list', document.querySelectorAll('.tab')[1]);
+}
+
+function resetWrite() {
+  transcript = ''; images = []; isEditing = false; currentEntry = null;
+  document.getElementById('transcriptBox').style.display = 'none';
+  document.getElementById('transcriptBox').textContent = '';
+  document.getElementById('thumbRow').innerHTML = '';
+  document.getElementById('resultArea').style.display = 'none';
+  document.getElementById('uploadLabel').textContent = '체결내역 화면 올리기 (여러 장 가능)';
+  document.getElementById('voiceLabel').textContent = '탭해서 말하기';
+  document.getElementById('micIcon').textContent = '🎙';
+  document.getElementById('imgInput').value = '';
+  document.getElementById('analyzeBtn').disabled = true;
+  document.getElementById('voiceBtn').classList.remove('rec');
+}
+
+// 목록
+function renderList() {
+  const el = document.getElementById('journalList');
+  if (!journal.length) { el.innerHTML = '<div class="journal-empty">아직 기록이 없어요.<br>첫 매매일지를 남겨보세요.</div>'; return; }
+  el.innerHTML = journal.map((j, i) => {
+    const preview = Object.values(j.entry || {}).join(' ').replace(/\n/g,' ').substring(0, 70);
+    return `<div class="j-item" onclick="openModal(${i})">
+      <div class="j-meta">
+        <span class="j-date">${j.date}</span>
+        <button class="j-del" onclick="event.stopPropagation(); deleteEntry(${i})">삭제</button>
+      </div>
+      <div class="j-preview">${preview}…</div>
+    </div>`;
+  }).join('');
+}
+
+function deleteEntry(i) {
+  if (!confirm('이 일지를 삭제할까요?')) return;
+  journal.splice(i, 1);
+  try { localStorage.setItem('mj_journal', JSON.stringify(journal)); } catch(e) {}
+  renderList();
+}
+
+// 모달
+let modalEditing = false;
+function openModal(i) {
+  editingIdx = i;
+  modalEditing = false;
+  document.getElementById('modalDate').textContent = journal[i].date;
+  renderModalBody(journal[i].entry, false);
+  document.getElementById('modalEditBtn').textContent = '수정하기';
+  document.getElementById('modalOverlay').classList.add('open');
+}
+function renderModalBody(entry, editable) {
+  let html = '';
+  SECTIONS.forEach(sec => {
+    const id = 'modal_' + sec.replace(/ /g, '_');
+    html += `<div class="sec-block">
+      <div class="sec-title">${SEC_LABELS[sec]}</div>
+      <div class="sec-body" id="${id}" ${editable ? 'contenteditable="true"' : ''}>${(entry[sec]||'').replace(/\n/g,'<br>')}</div>
+    </div>`;
+  });
+  document.getElementById('modalBody').innerHTML = html;
+}
+function getModalEntry() {
+  const result = {};
+  SECTIONS.forEach(sec => {
+    const el = document.getElementById('modal_' + sec.replace(/ /g,'_'));
+    result[sec] = el ? el.innerText : '';
+  });
+  return result;
+}
+function toggleModalEdit() {
+  modalEditing = !modalEditing;
+  renderModalBody(getModalEntry(), modalEditing);
+  document.getElementById('modalEditBtn').textContent = modalEditing ? '완료' : '수정하기';
+}
+function saveModalEdit() {
+  journal[editingIdx].entry = getModalEntry();
+  try { localStorage.setItem('mj_journal', JSON.stringify(journal)); } catch(e) {}
+  closeModal();
+  renderList();
+}
+function closeModal() { document.getElementById('modalOverlay').classList.remove('open'); }
+function closeModalOutside(e) { if (e.target === document.getElementById('modalOverlay')) closeModal(); }
+</script>
+</body>
+</html>
